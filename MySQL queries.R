@@ -367,10 +367,10 @@ q_statement <- "
 q <- dbSendQuery(mydb, q_statement)
 
 # Retrieve data from query
-data <- fetch(q, n=-1)
+data <- fetch(q, n = -1)
 
 # Export data to csv
-write.csv(data, "data.csv")
+write.csv(data, "data.csv", row.names = FALSE, na = "")
 
 # Clear the query
 dbClearResult(q)
