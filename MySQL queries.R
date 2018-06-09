@@ -5,10 +5,10 @@ library("RMySQL")
 setwd(choose.dir())
 
 # Connect to MySQL database
-mydb <- dbConnect(MySQL(), user = "", password = "", dbname = "", host = "")
+db <- dbConnect(MySQL(), user = "", password = "", dbname = "", host = "localhost")
 
 # List tables in database
-dbListTables(mydb)
+dbListTables(db)
 
 # Query the database
 q_statement <- "
@@ -362,15 +362,15 @@ q_statement <- "
   FROM capl_participants cp
     INNER JOIN capl_participants_metadata cpm ON cp.participant_id = cpm.participant_id
   WHERE cpm.time_point = 1
-  GROUP BY cp.participant_id ORDER BY cp.sort_order ASC
+  GROUP BY cp.participant_id, cpm.time_point ORDER BY cpm.time_point, cp.nickname ASC
 "
-q <- dbSendQuery(mydb, q_statement)
+q <- dbSendQuery(db, q_statement)
 
 # Retrieve data from query
 data <- fetch(q, n = -1)
 
 # Export data to csv
-write.csv(data, "data.csv", row.names = FALSE, na = "")
+write.csv(data_final, "data.csv", row.names = FALSE, na = "")
 
 # Clear the query
 dbClearResult(q)
