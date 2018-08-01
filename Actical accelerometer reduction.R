@@ -100,6 +100,11 @@ reduce_awc <- function(x, days_to_extract, downsample = FALSE) {
 			vcut <- 9999999
 			mcut <- 1150
 			lcut <- 100
+		} else if(age >= 18) {
+			# StatsCan cut-points for adults
+			vcut <- 3962
+			mcut <- 1535
+			lcut <- 100
 		} else {
 			# StatsCan cut-points for children/youth
 			vcut <- 6500
@@ -112,6 +117,11 @@ reduce_awc <- function(x, days_to_extract, downsample = FALSE) {
 			vcut <- 9999999
 			mcut <- 288
 			lcut <- 25
+		} else if(age >= 18) {
+			# StatsCan cut-points for adults
+			vcut <- 3962 / 4
+			mcut <- 1535 / 4
+			lcut <- 100 / 4
 		} else {
 			# StatsCan cut-points for children/youth
 			vcut <- 991
@@ -325,12 +335,12 @@ export_awc <- function(result, type, name = type) {
 }
 
 # Reduce actical data 
-results <- get_awc(days = 5, downsample = TRUE)
+results <- get_awc(days = 7, downsample = TRUE)
 
 # View reduced data
 view_awc(results, "daily")
 view_awc(results, "summary")
 
 # Export results
-export_awc(results, "daily", name = "15 seconds - day by day")
-export_awc(results, "summary", name = "15 seconds - summary")
+export_awc(results, "daily", name = "day by day")
+export_awc(results, "summary", name = "summary")
