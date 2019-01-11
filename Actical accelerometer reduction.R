@@ -89,9 +89,9 @@ reduce <- function(x) {
 		counts <- unname(tapply(df$counts, (seq_along(df$counts) - 1) %/% 4, get_sum))
 		steps <- unname(tapply(df$steps, (seq_along(df$steps) - 1) %/% 4, get_sum))
 		df <- data.frame(counts, steps)
-	} else if(epoch_rate == 15) {
-		counts <- unname(tapply(df$counts, (seq_along(df$counts) - 1) %/% 4, get_sum))
-		steps <- unname(tapply(df$steps, (seq_along(df$steps) - 1) %/% 4, get_sum))
+	} else if(epoch_rate == 30) {
+		counts <- unname(tapply(df$counts, (seq_along(df$counts) - 1) %/% 2, get_sum))
+		steps <- unname(tapply(df$steps, (seq_along(df$steps) - 1) %/% 2, get_sum))
 		df <- data.frame(counts, steps)
 	} else { 
 		# Do nothing 
