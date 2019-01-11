@@ -1,3 +1,5 @@
+# Notes: file(s) need to be in AWC format, not AWCF format
+
 # Set desktop as working directory (where CSV output will be stored)
 setwd(file.path(Sys.getenv("USERPROFILE"),"Desktop"))
 
@@ -9,7 +11,7 @@ get_sum <- function(x) {
 }
 
 ## Reduce actical accelerometer data
-reduce <- function(x) {
+reduce <- function(x, days_to_extract, summary_option) {
 	# Import data from selected file(s)
 	data <- trimws(readLines(con <- file(x)))
 
@@ -39,7 +41,6 @@ reduce <- function(x) {
 	epoch_lookup <- data.frame(x = c(1:2, 4), y = c(15, 30, 60), z = c("15-second", "30-second", "60-second"))
 	epoch_rate <- epoch_lookup[epoch_lookup$x == epoch, 2]
 	start <- as.POSIXct(trimws(paste(start_date, start_time, sep = " ")), format = "%Y-%m-%d %H:%M:%S")
-	days_to_extract <- 7
 	spurious_count <- 20000
 	spurious_step <- 253
 
@@ -121,9 +122,13 @@ reduce <- function(x) {
 	# Add to data frame
 	df <- cbind("date_time" = time_stamp, day_string, "day_number" = v, df)
 
-	# Subset data frame in accordance with days_to_extract value
-	df <- df[df$day_number <= days_to_extract,]
+	# Compute days sampled
+	days_sampled <- max(df$day_number)
 
+	# Subset data frame in accordance with days_to_extract value
+	if(days_sampled < days_to_extract) days_to_extract <- days_sampled
+	df <- df[df$day_number <= days_to_extract,]
+	
 	# Set any spurious counts/steps to zero
 	df$counts <- sapply(df$counts, function(x, y = spurious_count) if(is.na(x) | x >= y) NA else x )
 	df$steps <- sapply(df$steps, function(x, y = spurious_step) if(is.na(x) | x >= y) NA else x )
@@ -168,19 +173,27 @@ reduce <- function(x) {
 	df$mvpa <- apply(df[, c("mpa", "vpa")], 1, sum)
 
 	# Create other data structures for use when summarizing data
-	days_sampled <- length(unique(df$day_string))
-	df2 <- data.frame(day = 1:length(unique(df$day_string)))
-	df2$daily_wear_time <- aggregate(df$wear_time, by = list(Day = df$day_string), FUN = sum)$x
-	df2$daily_non_wear_time <- aggregate(df$non_wear_time, by = list(Day = df$day_string), FUN = sum)$x
-	df2$valid_day <- sapply(df2$daily_wear_time, function(x) if(is.na(x) | x < (valid_hours * 60)) 0 else 1)
-	df2$daily_total_wear_time <- apply(df2[, c("daily_wear_time", "daily_non_wear_time", "valid_day")], 1, function(x) if(sum(is.na(x[1:3])) > 0 | x[3] == 0) NA else sum(x[1:2]))
-	df2$daily_counts <- aggregate(df$counts, by = list(Day = df$day_string), FUN = sum)$x
-	df2$daily_steps <- aggregate(df$steps, by = list(Day = df$day_string), FUN = sum)$x
-	df2$daily_sb <- aggregate(df$sb, by = list(Day = df$day_string), FUN = sum)$x
-	df2$daily_lpa <- aggregate(df$lpa, by = list(Day = df$day_string), FUN = sum)$x
-	df2$daily_mpa <- aggregate(df$mpa, by = list(Day = df$day_string), FUN = sum)$x
-	df2$daily_vpa <- aggregate(df$vpa, by = list(Day = df$day_string), FUN = sum)$x
-	df2$daily_mvpa <- aggregate(df$mvpa, by = list(Day = df$day_string), FUN = sum)$x
+	time_stamp2 <- unname(sapply(as.character(df$date_time), function(x) unlist(strsplit(x, " "))[1]))
+	df2 <- data.frame(date_time = unique(time_stamp2)[1:days_to_extract])
+	df2$day <- unique(df$day_string)
+	df2$pid <- rep(pid, days_to_extract) 
+	df2$did <- rep(did, days_to_extract) 
+	df2$epoch <- rep(epoch_lookup[epoch_lookup$x == epoch, 3], days_to_extract) 
+	df2$age <- rep(age, days_to_extract) 
+	df2$sex <- rep(sex, days_to_extract) 
+	df2$height <- rep(height, days_to_extract) 
+	df2$weight <- rep(weight, days_to_extract) 
+	df2$wear_time <- aggregate(df$wear_time, by = list(Day = df$day_number), FUN = sum)$x
+	df2$non_wear_time <- aggregate(df$non_wear_time, by = list(Day = df$day_number), FUN = sum)$x
+	df2$valid_day <- sapply(df2$wear_time, function(x) if(is.na(x) | x < (valid_hours * 60)) 0 else 1)
+	df2$total_wear_time <- apply(df2[, c("wear_time", "non_wear_time")], 1, function(x) get_sum(x[1:2]))
+	df2$counts <- aggregate(df$counts, by = list(Day = df$day_number), FUN = sum)$x
+	df2$steps <- aggregate(df$steps, by = list(Day = df$day_number), FUN = sum)$x
+	df2$sb <- aggregate(df$sb, by = list(Day = df$day_number), FUN = sum)$x
+	df2$lpa <- aggregate(df$lpa, by = list(Day = df$day_number), FUN = sum)$x
+	df2$mpa <- aggregate(df$mpa, by = list(Day = df$day_number), FUN = sum)$x
+	df2$vpa <- aggregate(df$vpa, by = list(Day = df$day_number), FUN = sum)$x
+	df2$mvpa <- aggregate(df$mvpa, by = list(Day = df$day_number), FUN = sum)$x
 		
 	# Create summary data frame
 	summary <- data.frame(
@@ -191,32 +204,39 @@ reduce <- function(x) {
 		sex, 
 		height, 
 		weight, 
-		days_sampled = nrow(df2), 
+		days_sampled, 
+		days_extracted = days_to_extract,
 		valid_days = sum(df2$valid_day, na.rm = TRUE), 
-		wear_time = mean(df2$daily_wear_time[df2$valid_day == 1], na.rm = TRUE), 
-		non_wear_time = mean(df2$daily_non_wear_time[df2$valid_day == 1], na.rm = TRUE), 
-		total_wear_time = mean(df2$daily_total_wear_time[df2$valid_day == 1], na.rm = TRUE),
-		counts = mean(df2$daily_counts[df2$valid_day == 1], na.rm = TRUE),
-		steps = mean(df2$daily_steps[df2$valid_day == 1], na.rm = TRUE),
-		sb = mean(df2$daily_sb[df2$valid_day == 1], na.rm = TRUE),
-		lpa = mean(df2$daily_lpa[df2$valid_day == 1], na.rm = TRUE),
-		mpa = mean(df2$daily_mpa[df2$valid_day == 1], na.rm = TRUE),
-		vpa = mean(df2$daily_vpa[df2$valid_day == 1], na.rm = TRUE),
-		mvpa = mean(df2$daily_mvpa[df2$valid_day == 1], na.rm = TRUE)
+		wear_time = mean(df2$wear_time[df2$valid_day == 1], na.rm = TRUE), 
+		non_wear_time = mean(df2$non_wear_time[df2$valid_day == 1], na.rm = TRUE), 
+		total_wear_time = mean(df2$total_wear_time[df2$valid_day == 1], na.rm = TRUE),
+		counts = mean(df2$counts[df2$valid_day == 1], na.rm = TRUE),
+		steps = mean(df2$steps[df2$valid_day == 1], na.rm = TRUE),
+		sb = mean(df2$sb[df2$valid_day == 1], na.rm = TRUE),
+		lpa = mean(df2$lpa[df2$valid_day == 1], na.rm = TRUE),
+		mpa = mean(df2$mpa[df2$valid_day == 1], na.rm = TRUE),
+		vpa = mean(df2$vpa[df2$valid_day == 1], na.rm = TRUE),
+		mvpa = mean(df2$mvpa[df2$valid_day == 1], na.rm = TRUE)
 	)
 	
 	# Output the summary data frame 
-	output <- summary
+	if(summary_option == "overall") output <- summary else output <- df2
+
+	# Return output
+	return(output)
 }
 
 ## Wrapper function for reduce()
-reduce_files <- function() {
+reduce_files <- function(days_to_extract = 7, summary = "overall") {
+	# Ensure days parameter is a number and, if not, then revert to the default
+	if(is.numeric(days_to_extract)) days_to_extract <- floor(days_to_extract) else days_to_extract <- 7
+	
 	# Return output as a data frame
-	return(do.call("rbind", apply(data.frame(choose.files()), 1, function(x) reduce(x[1]))))
+	return(do.call("rbind", apply(data.frame(choose.files()), 1, function(x, y = days_to_extract, z = summary) reduce(x[1], y, z))))
 }
 
-# Reduce accelerometer file(s)
-output <- reduce_files()
+# Reduce accelerometer file(s) (days_to_extract = integer, summary = "overall" or "by_day")
+output <- reduce_files(days_to_extract = 14, summary = "overall")
 
 # View output
 View(output)
