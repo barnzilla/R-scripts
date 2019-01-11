@@ -209,7 +209,7 @@ reduce <- function(x) {
 	output <- summary
 }
 
-## Wrapper function for reduce_awc()
+## Wrapper function for reduce()
 reduce_files <- function() {
 	# Return output as a data frame
 	return(do.call("rbind", apply(data.frame(choose.files()), 1, function(x) reduce(x[1]))))
