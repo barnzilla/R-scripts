@@ -19,7 +19,7 @@ reduce <- function(x, days_to_extract, summary_option) {
 	data <- trimws(readLines(con <- file(x)))
 
 	# Close the connection
-	close(con)
+	on.exit(close(con))
 
 	# Find blank line (after which comes activity data)
 	blank_line <- match("", data)
@@ -85,7 +85,7 @@ reduce <- function(x, days_to_extract, summary_option) {
 		df <- as.data.frame(matrix(data2, ncol = 2, byrow = TRUE))
 		colnames(df) <- c("counts", "steps")
 	} else {
-		df <- as.data.frame("counts" = data2)
+		df <- data.frame("counts" = data2, "steps" = rep(NA, rows))
 	}
 
 	# Downsample counts and steps if the epoch rate is not 60 seconds
