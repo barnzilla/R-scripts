@@ -187,17 +187,17 @@ reduce <- function(x, days_to_extract, summary_option) {
 	df2$sex <- rep(sex, days_to_extract) 
 	df2$height <- rep(height, days_to_extract) 
 	df2$weight <- rep(weight, days_to_extract) 
-	df2$wear_time <- aggregate(df$wear_time, by = list(Day = df$day_number), FUN = get_sum)$x
-	df2$non_wear_time <- aggregate(df$non_wear_time, by = list(Day = df$day_number), FUN = get_sum)$x
+	df2$wear_time <- aggregate(df$wear_time, by = list(Day = df$day_number), FUN = sum)$x
+	df2$non_wear_time <- aggregate(df$non_wear_time, by = list(Day = df$day_number), FUN = sum)$x
 	df2$valid_day <- sapply(df2$wear_time, function(x) if(is.na(x) | x < (valid_hours * 60)) 0 else 1)
 	df2$total_wear_time <- apply(df2[, c("wear_time", "non_wear_time")], 1, function(x) get_sum(x[1:2]))
-	df2$counts <- aggregate(df$counts, by = list(Day = df$day_number), FUN = get_sum)$x
-	df2$steps <- aggregate(df$steps, by = list(Day = df$day_number), FUN = get_sum)$x
-	df2$sb <- aggregate(df$sb, by = list(Day = df$day_number), FUN = get_sum)$x
-	df2$lpa <- aggregate(df$lpa, by = list(Day = df$day_number), FUN = get_sum)$x
-	df2$mpa <- aggregate(df$mpa, by = list(Day = df$day_number), FUN = get_sum)$x
-	df2$vpa <- aggregate(df$vpa, by = list(Day = df$day_number), FUN = get_sum)$x
-	df2$mvpa <- aggregate(df$mvpa, by = list(Day = df$day_number), FUN = get_sum)$x
+	df2$counts <- aggregate(df$counts, by = list(Day = df$day_number), FUN = sum)$x
+	df2$steps <- aggregate(df$steps, by = list(Day = df$day_number), FUN = sum)$x
+	df2$sb <- aggregate(df$sb, by = list(Day = df$day_number), FUN = sum)$x
+	df2$lpa <- aggregate(df$lpa, by = list(Day = df$day_number), FUN = sum)$x
+	df2$mpa <- aggregate(df$mpa, by = list(Day = df$day_number), FUN = sum)$x
+	df2$vpa <- aggregate(df$vpa, by = list(Day = df$day_number), FUN = sum)$x
+	df2$mvpa <- aggregate(df$mvpa, by = list(Day = df$day_number), FUN = sum)$x
 		
 	# Create summary data frame
 	summary <- data.frame(
