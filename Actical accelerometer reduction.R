@@ -14,7 +14,7 @@ get_sum <- function(x) {
 }
 
 ## Reduce actical accelerometer data
-reduce <- function(x, days_to_extract, summary_option) {
+reduce <- function(x, days_to_extract, summary_option, remove_first_day) {
 	# Import data from selected file(s)
 	data <- trimws(readLines(con <- file(x)))
 
@@ -131,6 +131,12 @@ reduce <- function(x, days_to_extract, summary_option) {
 	# Subset data frame in accordance with days_to_extract value
 	if(days_sampled < days_to_extract) days_to_extract <- days_sampled
 	df <- df[df$day_number <= days_to_extract,]
+
+	# Subset data frame again if remove_first_day set to TRUE
+	if(isTRUE(remove_first_day)) {
+		df <- df[df$day_number > 1,]
+		days_to_extract <- days_to_extract - 1
+	}
 	
 	# Set any spurious counts/steps to zero
 	df$counts <- sapply(df$counts, function(x, y = spurious_count) if(is.na(x) | x >= y) NA else x )
@@ -233,16 +239,16 @@ reduce <- function(x, days_to_extract, summary_option) {
 }
 
 ## Wrapper function for reduce()
-reduce_files <- function(days_to_extract = 7, summary = "overall") {
+reduce_files <- function(days_to_extract = 7, summary = "overall", remove_first_day = FALSE) {
 	# Ensure days parameter is a number and, if not, then revert to the default
 	if(is.numeric(days_to_extract)) days_to_extract <- floor(days_to_extract) else days_to_extract <- 7
 	
 	# Return output as a data frame
-	return(do.call("rbind", pbapply(data.frame(choose.files()), 1, function(x, y = days_to_extract, z = summary) reduce(x[1], y, z))))
+	return(do.call("rbind", pbapply(data.frame(choose.files()), 1, function(x, y = days_to_extract, z = summary, a = remove_first_day) reduce(x[1], y, z, a))))
 }
 
-# Reduce accelerometer file(s) (days_to_extract = integer, summary = "overall" or "by_day")
-output <- reduce_files(days_to_extract = 14, summary = "overall")
+# Reduce accelerometer file(s) (days_to_extract = integer, summary = "overall" or "by_day", remove_first_day = "TRUE" or "FALSE")
+output <- reduce_files(days_to_extract = 7, summary = "overall", remove_first_day = FALSE)
 
 # View output
 View(output)
