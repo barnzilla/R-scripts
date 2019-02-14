@@ -14,7 +14,7 @@ get_sum <- function(x) {
 }
 
 ## Reduce actical accelerometer data
-reduce <- function(x, days_to_extract, summary_option, remove_first_day) {
+reduce <- function(x, days_to_extract, summary_option, remove_first_day, remove_last_day) {
 	# Import data from selected file(s)
 	data <- trimws(readLines(con <- file(x)))
 
@@ -132,10 +132,33 @@ reduce <- function(x, days_to_extract, summary_option, remove_first_day) {
 	if(days_sampled < days_to_extract) days_to_extract <- days_sampled
 	df <- df[df$day_number <= days_to_extract,]
 
-	# Subset data frame again if remove_first_day set to TRUE
+	# Subset data frame again if remove_first_day set to TRUE or to a time stamp
 	if(isTRUE(remove_first_day)) {
 		df <- df[df$day_number > 1,]
 		days_to_extract <- days_to_extract - 1
+	} else if(is.character(remove_first_day)) {
+	  lower_bound <- paste(start_date, remove_first_day, sep = " ")
+		adjusted_steps <- as.numeric(unlist(apply(df[,c("date_time", "steps")], 1, function(x, y = lower_bound) if(x[1] < y) NA else x[2])))
+		adjusted_counts <- as.numeric(unlist(apply(df[,c("date_time", "counts")], 1, function(x, y = lower_bound) if(x[1] < y) NA else x[2])))
+		df$steps <- adjusted_steps
+		df$counts <- adjusted_counts
+	} else {
+		# Leave df as is
+	}
+	
+	# Subset data frame again if remove_last_day set to TRUE or to a time stamp
+	if(isTRUE(remove_last_day)) {
+		df <- df[df$day_number < max(df$day_number),]
+		days_to_extract <- days_to_extract - 1
+	} else if(is.character(remove_last_day)) {
+		end_date <- strsplit(as.character(df$date_time[length(df$date_time)]), " ")[[1]][1]
+		upper_bound <- paste(end_date, remove_last_day, sep = " ")
+		adjusted_steps <- as.numeric(unlist(apply(df[,c("date_time", "steps")], 1, function(x, y = upper_bound) if(x[1] > y) NA else x[2])))
+		adjusted_counts <- as.numeric(unlist(apply(df[,c("date_time", "counts")], 1, function(x, y = upper_bound) if(x[1] > y) NA else x[2])))
+		df$steps <- adjusted_steps
+		df$counts <- adjusted_counts
+	} else {
+		# Leave df as is
 	}
 	
 	# Set any spurious counts/steps to zero
@@ -157,7 +180,7 @@ reduce <- function(x, days_to_extract, summary_option, remove_first_day) {
 	df$wear_time <- rep(NA, nrow(df))
 	for(i in 1:nrow(df)) {
 		if(is.na(df$counts[i])) {
-			df$wear_time <- NA
+			df$wear_time[i] <- 0
 		} else if(df$counts[i] > 100) {
 			df$wear_time[i] <- 1
 		} else {
@@ -170,7 +193,7 @@ reduce <- function(x, days_to_extract, summary_option, remove_first_day) {
 	}
 	
 	# Create non wear time column for use when summarizing data
-	df$non_wear_time <- sapply(df$wear_time, function(x) if(is.na(x)) NA else if(x == 0) 1 else 0)
+	df$non_wear_time <- sapply(df$wear_time, function(x) if(is.na(x)) 1 else if(x == 0) 1 else 0)
 
 	# Classify intensity
 	df$intensity <- apply(df[, c("counts", "wear_time")], 1, function(x, a = vcut, b = mcut, c = lcut) if(is.na(x[1]) | is.na(x[2]) | x[2] == 0) NA else if(x[1] >= a) "VPA" else if(x[1] >= b) "MPA" else if(x[1] >= c) "LPA" else "SB")
@@ -197,8 +220,8 @@ reduce <- function(x, days_to_extract, summary_option, remove_first_day) {
 	df2$non_wear_time <- aggregate(df$non_wear_time, by = list(Day = df$day_number), FUN = sum)$x
 	df2$valid_day <- sapply(df2$wear_time, function(x) if(is.na(x) | x < (valid_hours * 60)) 0 else 1)
 	df2$total_wear_time <- apply(df2[, c("wear_time", "non_wear_time")], 1, function(x) get_sum(x[1:2]))
-	df2$counts <- aggregate(df$counts, by = list(Day = df$day_number), FUN = sum)$x
-	df2$steps <- aggregate(df$steps, by = list(Day = df$day_number), FUN = sum)$x
+	df2$counts <- aggregate(df$counts, by = list(Day = df$day_number), FUN = get_sum)$x
+	df2$steps <- aggregate(df$steps, by = list(Day = df$day_number), FUN = get_sum)$x
 	df2$sb <- aggregate(df$sb, by = list(Day = df$day_number), FUN = sum)$x
 	df2$lpa <- aggregate(df$lpa, by = list(Day = df$day_number), FUN = sum)$x
 	df2$mpa <- aggregate(df$mpa, by = list(Day = df$day_number), FUN = sum)$x
@@ -239,16 +262,20 @@ reduce <- function(x, days_to_extract, summary_option, remove_first_day) {
 }
 
 ## Wrapper function for reduce()
-reduce_files <- function(days_to_extract = 7, summary = "overall", remove_first_day = FALSE) {
+reduce_files <- function(days_to_extract = 7, summary = "overall", remove_first_day = FALSE, remove_last_day = FALSE) {
 	# Ensure days parameter is a number and, if not, then revert to the default
 	if(is.numeric(days_to_extract)) days_to_extract <- floor(days_to_extract) else days_to_extract <- 7
 	
 	# Return output as a data frame
-	return(do.call("rbind", pbapply(data.frame(choose.files()), 1, function(x, y = days_to_extract, z = summary, a = remove_first_day) reduce(x[1], y, z, a))))
+	return(do.call("rbind", pbapply(data.frame(choose.files()), 1, function(x, y = days_to_extract, z = summary, a = remove_first_day, b = remove_last_day) reduce(x[1], y, z, a, b))))
 }
 
-# Reduce accelerometer file(s) (days_to_extract = integer, summary = "overall" or "by_day", remove_first_day = "TRUE" or "FALSE")
-output <- reduce_files(days_to_extract = 7, summary = "overall", remove_first_day = FALSE)
+# Reduce accelerometer file(s)
+## days_to_extract = integer
+## summary = "overall" or "by_day"
+## remove_first_day = TRUE for the entire first day, a timestamp (e.g., "13:30:00") for the part of the day that is >= the timestamp, or FALSE for none of the first day)
+## remove_last_day = TRUE for the entire last day, a timestamp (e.g., "13:30:00") for the part of the day that is <= the timestamp, or FALSE for none of the last day)
+output <- reduce_files(days_to_extract = 7, summary = "overall", remove_first_day = FALSE, remove_last_day = FALSE)
 
 # View output
 View(output)
