@@ -14,7 +14,10 @@ get_sum <- function(x) {
 }
 
 ## Reduce actical accelerometer data
-reduce <- function(x, days_to_extract, summary_option, remove_first_day, remove_last_day) {
+reduce <- function(x, days_to_extract, summary_option, remove_first_day, remove_last_day, consecutive_zeros) {
+	# Validate parameters
+	consecutive_zeros <- ifelse( ! is.numeric( consecutive_zeros ), 60, as.integer( consecutive_zeros ) )
+	
 	# Import data from selected file(s)
 	data <- trimws(readLines(con <- file(x)))
 
@@ -168,8 +171,8 @@ reduce <- function(x, days_to_extract, summary_option, remove_first_day, remove_
 	# Create index so that, for a given count, forward/backward inspection for exceptions can be executed before classifying wear time (0 = off, 1 = on)
 	index <- data.frame(lower = rep(NA, nrow(df)), upper = rep(NA, nrow(df)))	
 	for(i in 1:nrow(df)) {
-		index$lower[i] <- (i - 60)
-		index$upper[i] <- (i + 59)
+		index$lower[i] <- ( i - consecutive_zeros )
+		index$upper[i] <- ( i + ( consecutive_zeros - 1 ) )
 	}
 
 	# Remove non-positive values from index
@@ -262,12 +265,12 @@ reduce <- function(x, days_to_extract, summary_option, remove_first_day, remove_
 }
 
 ## Wrapper function for reduce()
-reduce_files <- function(days_to_extract = 7, summary = "overall", remove_first_day = FALSE, remove_last_day = FALSE) {
+reduce_files <- function(days_to_extract = 7, summary = "overall", remove_first_day = FALSE, remove_last_day = FALSE, consecutive_zeros = 60) {
 	# Ensure days parameter is a number and, if not, then revert to the default
 	if(is.numeric(days_to_extract)) days_to_extract <- floor(days_to_extract) else days_to_extract <- 7
 	
 	# Return output as a data frame
-	return(do.call("rbind", pbapply(data.frame(choose.files()), 1, function(x, y = days_to_extract, z = summary, a = remove_first_day, b = remove_last_day) reduce(x[1], y, z, a, b))))
+	return(do.call("rbind", pbapply(data.frame(choose.files()), 1, function(x, y = days_to_extract, z = summary, a = remove_first_day, b = remove_last_day, d = consecutive_zeros) reduce(x[1], y, z, a, b, d))))
 }
 
 # Reduce accelerometer file(s)
@@ -275,7 +278,8 @@ reduce_files <- function(days_to_extract = 7, summary = "overall", remove_first_
 ## summary = "overall" or "by_day"
 ## remove_first_day = TRUE for the entire first day, a timestamp (e.g., "13:30:00") for the part of the day that is >= the timestamp, or FALSE for none of the first day)
 ## remove_last_day = TRUE for the entire last day, a timestamp (e.g., "13:30:00") for the part of the day that is <= the timestamp, or FALSE for none of the last day)
-output <- reduce_files(days_to_extract = 7, summary = "overall", remove_first_day = FALSE, remove_last_day = FALSE)
+## consecutive_zeros = integer representing minutes of consecutive zeroes; defaults to 60
+output <- reduce_files(days_to_extract = 7, summary = "by_day", remove_first_day = FALSE, remove_last_day = FALSE, consecutive_zeros = 60)
 
 # View output
 View(output)
