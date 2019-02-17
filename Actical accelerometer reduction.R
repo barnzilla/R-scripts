@@ -13,6 +13,24 @@ get_sum <- function( x ) {
 	sum( x, na.rm = TRUE )
 }
 
+## Sadeh algorithm for determining sleep/wake states
+get_sw <- function( df ) {
+	# Set new columns
+	df$axis1_adj <- sapply( df$axis1, function( x ) if( is.na( x ) ) NA else if( x > 300 ) 300 else x )
+	df$sleep <- rep( NA, nrow( df ) )
+	df$si <- rep( NA, nrow( df ) )
+	
+	# Iterate through each epoch and apply the Sadeh equation
+	for( i in 1:nrow( df ) ) {
+		il <- ifelse( i - 5 < 1, 1, i - 5 )
+		iu <- ifelse( i + 5 > nrow( df ), nrow( df ), i + 5 )
+		df$si[i] <- 7.601 - ( 0.065 * mean( df$axis1_adj[il:iu] ) ) - ( 1.08 * sum( df$axis1_adj[il:iu] >= 50 & df$axis1_adj[il:iu] < 100 ) ) - ( 0.056 * ifelse( i == 1 | i == nrow( df ), 0, sd( df$axis1_adj[il:i] ) ) ) - ( 0.703 * log( df$axis1_adj[i] + 1 ) )
+		df$sleep[i] <- ifelse( df$si[i] > -4, 1, 0 )
+	}
+		
+	return( df )
+}
+
 ## Reduce accelerometer data
 reduce <- function( x, days_to_extract, summary_option, remove_first_day, remove_last_day, consecutive_zeros ) {
 	# Validate parameters
@@ -102,7 +120,7 @@ reduce <- function( x, days_to_extract, summary_option, remove_first_day, remove
 		battery <- NA
 		
 		# Structure the activity data as a data frame
-		df <- data.frame( "counts" = data$vm, "steps" = data$steps )
+		df <- data.frame( "counts" = data$vm, "steps" = data$steps, data[,c( "axis1", "axis2", "axis3" )] )
 		
 		# Set age-related variables
 		if( age <= 6 ) {
