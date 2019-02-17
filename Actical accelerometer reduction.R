@@ -4,7 +4,7 @@
 library( "pbapply" )
 
 # Set desktop as working directory (where CSV output will be stored)
-setwd( ile.path( ys.getenv( "USERPROFILE" ), "Desktop" ) )
+setwd( file.path( Sys.getenv( "USERPROFILE" ), "Desktop" ) )
 
 # User-defined functions
 ## Wrapper function for sum()
