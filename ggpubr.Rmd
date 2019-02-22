@@ -1,0 +1,395 @@
+---
+title: "GGPUBR"
+author: "Mary-Ann Harrison"
+date:  `r strftime(Sys.time(),format="%d-%b-%Y at %H:%M")`
+output: html_document
+---
+
+========================================================
+```{r}
+library(ggpubr)
+library(dplyr)
+```
+
+
+```{r}
+
+# This tutorial was liberally 'inspired' from the STHDA wiki site: Statistical tools for high-throughput data analysis
+#
+# http://www.sthda.com/english/articles/24-ggpubr-publication-ready-plots/
+
+```
+
+
+```{r}
+# Read in data
+# Gene expression data: The Cancer Genome Atlas (TCGA) data (https://cancergenome.nih.gov/)
+# 
+expr <- read.delim("https://raw.githubusercontent.com/kassambara/data/master/expr_tcga.txt",
+                   stringsAsFactors = FALSE)
+```
+
+RNA expression for five genes of interest - 
+GATA3, PTEN, XBP1, ESR1 and MUC1 - 
+from 3 different data sets:
+
+- Breast invasive carcinoma (BRCA)
+- Ovarian serous cystadenocarcinoma (OV) 
+- Lung squamous cell carcinoma (LUSC)
+
+```{r}
+# Take a look at the data
+glimpse(expr)
+```
+
+Box plots
+========================================================
+## ggplot: GATA3
+```{r}
+
+p <-ggplot(expr,
+          aes(x=dataset,
+              y=GATA3,
+              color=dataset)) +
+  geom_boxplot() +
+  ggtitle("GATA3: ggplot") +
+  stat_summary(fun.y=mean,
+               geom="point") +
+  scale_fill_brewer(palette="Dark2",
+                    name="")+
+              theme_minimal()+
+       theme(panel.grid.major = element_blank(), 
+             panel.grid.minor = element_blank(), 
+             plot.background = element_blank())
+p
+```
+
+## ggpubr: GATA3
+```{r}
+# Create a box plot of a gene expression profile, colored by groups (cancer type):
+
+# GATA3
+ggboxplot(expr, 
+          x = "dataset", 
+          y = "GATA3",
+          title = "GATA3", 
+          ylab = "Expression",
+          color = "dataset", 
+          palette = "Dark2")+
+          stat_mean()
+```
+
+```{r}
+# PTEN
+ggboxplot(expr, 
+          x = "dataset", 
+          y = "PTEN",
+          title = "PTEN", 
+          ylab = "Expression",
+          color = "dataset", 
+          palette = "jco")
+```
+
+Box plots: list of plots
+========================================================
+```{r}
+# Instead of repeating the same R code for each gene, you can create a list of plots at once:
+# Bam!!!
+p <- ggboxplot(expr, 
+               x = "dataset", 
+               y = c("GATA3", "PTEN", "XBP1"),
+               title = c("GATA3", "PTEN", "XBP1"),
+               ylab = "Expression", 
+               color = "dataset", 
+               palette = "jco")
+```
+
+```{r}
+# View PTEN
+p$PTEN
+```
+
+```{r}
+# View GATA3
+p$GATA3
+```
+
+```{r}
+# View XBP1
+p$XBP1
+```
+
+
+Add p-values/significance levels
+========================================================
+
+```{r}
+# To add p-values and significance levels to the boxplots: GATA3 expression
+my_comparisons <- list(c("BRCA", "OV"), c("OV", "LUSC"), c("BRCA", "LUSC"))
+
+p <- ggboxplot(expr, 
+          x = "dataset", 
+          y = "GATA3",
+          title = "GATA3", 
+          ylab = "Expression",
+          color = "dataset", 
+          palette = "jco")+
+  stat_compare_means(comparisons = my_comparisons)
+p
+```
+
+
+Order data
+========================================================
+```{r}
+# Order data sets
+g1 <-ggboxplot(expr, 
+          x = "dataset", 
+          y = "GATA3",
+          title = "GATA3", 
+          ylab = "Expression",
+          color = "dataset", 
+          palette = "jco",
+          order = c("LUSC", "OV", "BRCA"))
+g1
+```
+
+Rotate
+========================================================
+```{r}
+# Rotate plot
+g2 <-ggboxplot(expr, 
+          x = "dataset", 
+          y = "GATA3",
+          title = "GATA3", 
+          ylab = "Expression",
+          color = "dataset", 
+          palette = "jco",
+          rotate = TRUE)
+g2
+```
+
+Combine into multi-panel plot
+========================================================
+```{r}
+# Combine into a multi-panel plot, use the argument combine = TRUE:
+ggboxplot(expr, 
+          x = "dataset",
+          y = c("GATA3", "PTEN", "XBP1"),
+          ylab = "Expression",
+          color = "dataset", 
+          palette = "jco",
+          combine = TRUE,)
+
+```
+
+Merge plots
+========================================================
+```{r}
+# You can also merge the 3 plots using the argument merge = TRUE or merge = “asis”:
+ggboxplot(expr, 
+          x = "dataset",
+          y = c("GATA3", "PTEN", "XBP1"),
+          ylab = "Expression", 
+          palette = "jco", 
+          merge = TRUE)
+```
+
+
+Histogram plots
+========================================================
+```{r}
+# Basic histogram plot 
+gghistogram(expr,
+       x = c("GATA3", "PTEN",  "XBP1"),
+       y = "..density..",
+       combine = TRUE,                  # Combine the 3 plots
+       xlab = "Expression", 
+       add = "median",                  # Add median line. 
+       rug = TRUE                       # Add marginal rug (best with smaller datasets)
+)
+```
+
+Change color & fill by dataset
+========================================================
+```{r}
+# Change color and fill by dataset
+gghistogram(expr,
+       x = c("GATA3", "PTEN",  "XBP1"),
+       y = "..density..",
+       combine = TRUE,                  # Combine the 3 plots
+       xlab = "Expression", 
+       add = "median",                  # Add median line. 
+       rug = TRUE,                      # Add marginal rug
+       color = "dataset", 
+       fill = "dataset",
+       palette = "jco"
+)
+```
+
+Scatter plots
+========================================================
+```{r}
+# Scatter plot (sp)
+# load mtcars database
+data("mtcars")
+
+# Change cyl to factor
+mtcars$cyl <-factor(mtcars$cyl)
+
+sp <- ggscatter(mtcars, 
+                x = "wt", 
+                y = "mpg",
+                add = "reg.line",               # Add regression line
+                conf.int = TRUE,                # Add confidence intervals
+                color = "cyl",                  # Color by groups "cyl"
+                palette = "jco",               
+                shape = "cyl")+
+  stat_cor(aes(color = cyl), label.x = 3)       # Add correlation coefficient
+sp
+```
+
+Arrange plots on one page
+========================================================
+```{r}
+ggarrange(g1, g2, sp + rremove("x.text"), # Remove ggplot component
+          labels = c("A", "B", "C"),      # Add your own labels
+          ncol = 2,                       # Specify the desired layout by columns & rows
+          nrow = 2)
+```
+
+Graphical Parameters
+========================================================
+```{r}
+# Change titles and axis labels (ggpar)
+
+p2 <- ggpar(p, 
+            title = "Hey - I am a boxplot created with ggpubr",
+            subtitle = "Whoot 0.o",
+            caption = "Source: ggpubr",
+            xlab ="I am X", 
+            ylab = "I am Y",
+            legend.title = "I AM LEGEND")
+p2
+```
+
+Font/appearance of titles and labels
+========================================================
+```{r}
+# Change the font/appearance of plot titles and labels and add line break (\n)
+
+ggpar(p2, 
+      title = "Hey - I am a boxplot \n created with ggpubr",
+      font.title = c(14, "bold.italic", "purple"),
+      font.subtitle = c(10,  "orange"),
+      font.caption = c(10,  "orange"),
+      font.x = c(14,  "blue"),
+      font.y = c(14,  "#993333")
+      )
+```
+
+Change color palettes
+========================================================
+
+The argument palette (in ggpar() function ) can be used to change group color palettes. 
+
+Allowed values include:
+
+ - Custom color palettes e.g. c(“blue”, “red”) or c(“#00AFBB”, “#E7B800”);“grey” for grey 
+
+- Color palettes;brewer palettes e.g. “RdBu”, “Blues”, …; 
+
+  - To view all, type this in R: RColorBrewer::display.brewer.all()
+
+  - Scientific journal palettes from the ggsci R package:
+      “npg”, “aaas”, “lancet”, “jco”, “ucscgb”, “uchicago”, “simpsons”, “rickandmorty", etc.
+
+```{r}
+# Nature
+sp2 <-ggpar(sp, palette = "npg")
+sp2
+```
+
+```{r}
+# The New England Journal of Medicine
+sp3 <-ggpar(sp, "nejm")
+sp3
+```
+
+```{r}
+# “rickandmorty"
+sp4 <-ggpar(sp, palette = "rickandmorty")
+sp4
+```
+
+```{r}
+# Custom CHEO colours
+g1 + color_palette(c("#7B2981", "#00417D", "#00625C"))
+```
+
+Cool bit of code
+=============================
+```{r}
+# Create a publication ready theme from a ggplot plot
+# If you have already created a plot from ggplot, but it just is not quite there yet
+# Use theme_pubr()
+p + theme_pubr()
+```
+
+```{r}
+# Format label size
+p + labs_pubr(base_size = 14)
+```
+
+```{r}
+# Add summary statistics
+
+add_summary(p, "mean_ci")
+
+# Other useful summary statistics
+# mean_ci	Add Summary Statistics onto a ggplot.
+# mean_range	Add Summary Statistics onto a ggplot.
+# mean_sd	Add Summary Statistics onto a ggplot.
+# mean_se_	Add Summary Statistics onto a ggplot.
+# median_iqr	Add Summary Statistics onto a ggplot.
+# median_mad	Add Summary Statistics onto a ggplot.
+# median_range	Add Summary Statistics onto a ggplot.
+```
+
+
+
+# Resources
+
+## STDHA Wiki
+
+<http://www.sthda.com/english/articles/24-ggpubr-publication-ready-plots/>
+
+
+## Official online documentation:
+
+<http://www.sthda.com/english/rpkgs/ggpubr.>
+
+
+## Super Data Science Tutorial
+
+<https://www.superdatascience.com/pages/plotting-in-r>
+
+## `ggsci`: colour palettes for specific journals
+
+<https://cran.r-project.org/web/packages/ggsci/vignettes/ggsci.html#jco>
+
+
+## CRU: Richard Webster-How to design graphs (& influence people)
+
+<http://mediasite.otn.ca/Mediasite/Play/8e6c83d3efb34ad9805adbed58d34f111d>
+
+
+## Cheatsheet-Properties and Best Uses of Visual Encodings:
+
+<https://cheonet.cheo.on.ca/sites/default/files/uploads/Cheat%20sheet-Visual%20Properties%20Table-Noah%20Iliinsky.pdf>
+
+
+## How the BBC Visual and Data Journalism team works with graphics in R
+
+<https://medium.com/bbc-visual-and-data-journalism/how-the-bbc-visual-and-data-journalism-team-works-with-graphics-in-r-ed0b35693535>
+
