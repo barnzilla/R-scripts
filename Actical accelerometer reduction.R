@@ -32,7 +32,7 @@ get_sw <- function( df ) {
 }
 
 ## Reduce accelerometer data
-reduce <- function( x, days_to_extract, summary_option, remove_first_day, remove_last_day, consecutive_zeros ) {
+reduce <- function( x, days_to_extract, summary_option, remove_first_day, remove_last_day, consecutive_zeros, sleep_starts, sleep_stops ) {
 	# Validate parameters
 	consecutive_zeros <- ifelse( ! is.numeric( consecutive_zeros ), 60, as.integer( consecutive_zeros ) )
 	
@@ -224,6 +224,12 @@ reduce <- function( x, days_to_extract, summary_option, remove_first_day, remove
 	df$counts <- sapply( df$counts, function( x, y = spurious_count ) if( is.na( x ) | x >= y ) NA else x )
 	df$steps <- sapply( df$steps, function( x, y = spurious_step ) if( is.na( x ) | x >= y ) NA else x )
 
+	# If sleep_starts and sleep_stops are set, set counts/steps to zero within this window
+	if( is.character( sleep_starts ) & is.character( sleep_stops ) ) {
+		df$counts <- as.numeric( apply( data.frame( df$counts, strftime( df$date_time, format = "%H:%M:%S" ) ), 1, function( x, y = sleep_starts, z = sleep_stops ) if( is.na( x[1] ) | x[2] >= y | x[2] <= z ) NA else x[1] ) )
+		df$steps <- as.numeric( apply( data.frame( df$steps, strftime( df$date_time, format = "%H:%M:%S" ) ), 1, function( x, y = sleep_starts, z = sleep_stops ) if( is.na( x[1] ) | x[2] >= y | x[2] <= z ) NA else x[1] ) )
+	}
+
 	# Classify wear time
 	df$wear_time <- rep( NA, nrow( df ) )
 	for( i in 1:nrow( df ) ) {
@@ -313,12 +319,12 @@ reduce <- function( x, days_to_extract, summary_option, remove_first_day, remove
 }
 
 ## Wrapper function for reduce()
-reduce_files <- function( days_to_extract = 7, summary = "overall", remove_first_day = FALSE, remove_last_day = FALSE, consecutive_zeros = 60 ) {
+reduce_files <- function( days_to_extract = 7, summary = "overall", remove_first_day = FALSE, remove_last_day = FALSE, consecutive_zeros = 60, sleep_starts = FALSE, sleep_stops = FALSE ) {
 	# Ensure days parameter is a number and, if not, then revert to the default
 	if( is.numeric( days_to_extract ) ) days_to_extract <- floor( days_to_extract ) else days_to_extract <- 7
 	
 	# Return output as a data frame
-	return( do.call( "rbind", pbapply( data.frame( choose.files() ), 1, function( x, y = days_to_extract, z = summary, a = remove_first_day, b = remove_last_day, d = consecutive_zeros ) reduce( x[1], y, z, a, b, d ) ) ) )
+	return( do.call( "rbind", pbapply( data.frame( choose.files() ), 1, function( x, y = days_to_extract, z = summary, a = remove_first_day, b = remove_last_day, d = consecutive_zeros, e = sleep_starts, f = sleep_stops ) reduce( x[1], y, z, a, b, d, e, f ) ) ) )
 }
 
 # Reduce accelerometer file(s)
@@ -327,7 +333,9 @@ reduce_files <- function( days_to_extract = 7, summary = "overall", remove_first
 ## remove_first_day = TRUE for the entire first day, a timestamp (e.g., "13:30:00") for the part of the day that is >= the timestamp, or FALSE for none of the first day)
 ## remove_last_day = TRUE for the entire last day, a timestamp (e.g., "13:30:00") for the part of the day that is <= the timestamp, or FALSE for none of the last day)
 ## consecutive_zeros = integer representing minutes of consecutive zeroes; defaults to 60
-output <- reduce_files( days_to_extract = 7, summary = "by_day", remove_first_day = FALSE, remove_last_day = FALSE, consecutive_zeros = 60 )
+## sleep_starts = time string in 24-hour format (e.g., "21:00:00") or FALSE, defaults to FALSE, sleep_stops must also be set
+## sleep_stops = time string in 24-hour format (e.g., "05:00:00") or FALSE, defaults to FALSE, sleep_starts must also be set
+output <- reduce_files( days_to_extract = 7, summary = "by_day", remove_first_day = FALSE, remove_last_day = FALSE, consecutive_zeros = 60, sleep_starts = FALSE, sleep_stops = FALSE )
 
 # View output
 View( output )
