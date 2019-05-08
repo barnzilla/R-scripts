@@ -191,6 +191,12 @@ reduce <- function( x, days_to_extract, summary_option, remove_first_day, remove
 	if( days_sampled < days_to_extract ) days_to_extract <- days_sampled
 	df <- df[df$day_number <= days_to_extract,]
 
+	# Ensure there are enough days to extract
+	removals <- sum( c( remove_first_day, remove_last_day ) )
+	if( ( days_sampled - removals ) < days_to_extract ) {
+		stop( paste0( "The file ", basename(x), " does not have enough days sampled to extract (", days_to_extract,") since the first and/or last day are being removed." ) )
+	}
+
 	# Subset data frame again if remove_first_day set to TRUE or to a time stamp
 	if( isTRUE( remove_first_day ) ) {
 		df <- df[df$day_number > 1,]
@@ -336,7 +342,6 @@ reduce_files <- function( days_to_extract = 7, summary = "overall", remove_first
 ## sleep_starts = time string in 24-hour format (e.g., "21:00:00") or FALSE, defaults to FALSE, sleep_stops must also be set
 ## sleep_stops = time string in 24-hour format (e.g., "05:00:00") or FALSE, defaults to FALSE, sleep_starts must also be set
 output <- reduce_files( days_to_extract = 7, summary = "by_day", remove_first_day = FALSE, remove_last_day = FALSE, consecutive_zeros = 60, sleep_starts = FALSE, sleep_stops = FALSE )
-
 # View output
 View( output )
 
